@@ -10,15 +10,18 @@ import subprocess
 load_dotenv()
 
 @flow
-def asm_flow():
+def asm_flow(s3_block_name: str, s3_key: str, table_name: str):
     """Main flow to read from S3, enrich data, and load into MySQL."""
-    # df = s3_read(block_name=s3_block_name, key=s3_key)
-    # df_enriched = enrich_raw_metadata(df, Path(s3_key).name)
-    # load_raw_mysql(df_enriched, table_name)
+    df = s3_read(block_name=s3_block_name, key=s3_key)
+    df_enriched = enrich_raw_metadata(df, Path(s3_key).name)
+    load_raw_mysql(df_enriched, table_name)
+
+    #TODO: inserir dbt aqui
+
     # cnpj_list = missing_cnpj_check()
     # api_launcher(cnpj_list)
-    product_list = missing_product_check()
-    print(product_list)
+    # product_list = missing_product_check()
+    # print(product_list)
 
 #TODO: Alterar pois não funciona
 #TODO: Preciso reinstalar todas as dependencias
@@ -35,9 +38,9 @@ def run_dbt():
         raise Exception("dbt run failed")
 
 if __name__ == "__main__":
-    # asm_flow(
-    #     s3_block_name="aws-credentials-local",
-    #     s3_key="ASM/ASM-2025.csv",
-    #     table_name="sellout_asm_raw"
-    # )
-    asm_flow()
+    asm_flow(
+        s3_block_name="aws-credentials-local",
+        s3_key="ASM/ASM-2025.csv",
+        table_name="sellout_asm_raw"
+    )
+ 

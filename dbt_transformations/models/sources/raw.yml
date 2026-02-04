@@ -5,3 +5,11 @@ sources:
     schema: database_samsung
     tables:
       - name: sellout_asm_raw
+  
+  - name: bd_samsung_one
+    schema: bd_samsung_one
+    tables:
+      - name: dproduct
+      - name: d_cnpj
+      - name: ddistributor
+ 

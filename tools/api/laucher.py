@@ -2,6 +2,7 @@ import pandas as pd
 import asyncio
 from tools.api.api_cnpj import ReceitaWSClient
 
+#TODO: Documenatr essa classe e desenvolver forma de cadastrar cnpj inválidos
 class DataApiManager:
     """
     Classe responsável por transformar e adequar os dados retornados da Classe ReceitaWSClient

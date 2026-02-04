@@ -1,11 +1,13 @@
-from tools.api.laucher import DataApiManager
 from prefect_aws import AwsCredentials, S3Bucket
 from prefect_sqlalchemy import SqlAlchemyConnector
+from src.helpers import tratamento_cnpj
+from tools.api.laucher import DataApiManager
 from prefect import task
 from datetime import datetime
 from sqlalchemy import text
 from io import BytesIO
 import pandas as pd
+from tools.cnpj_services import upsert_cnpj, upsert_cnpj_group
 
 @task
 def s3_read(block_name: str, key: str) -> pd.DataFrame:
@@ -106,10 +108,45 @@ def insert_missing_products(product_list):
     print("Inserted missing products into the database.")
 
 @task
+#TODO: Alterar esssa função para Lambda AWS e documentar
 def api_launcher(cnpj_list):
+    
     #TODO: Document this function and modify to Lambda AWS
+    #TODO: Desenvolver forma de cadastrar cnpj inválidos
     """Task to launch API calls for a list of CNPJs and process the results."""
+
+    connector = SqlAlchemyConnector.load("mysql-credentials-local")
+    engine = connector.get_engine()
     api_manager = DataApiManager()
     results = api_manager.api_launcher(cnpj_list)
-    print("API results processed:", results)
-    
+
+    total =len(results["cnpj_data"]["cnpj"])
+
+    for i in range(total):
+        
+        cnpj_raw = results["cnpj_data"]["cnpj"][i]
+        cnpj_treated = tratamento_cnpj(cnpj_raw)
+        cnpj_raiz = cnpj_treated[:8]
+
+        cnpj_group_playload = {
+            "group_number": cnpj_raiz,
+            "legal_name": results["cnpj_data"]["nome"][i],
+            "brand_name": results["cnpj_data"]["fantasia"][i]
+        }
+
+        # Insert or update CNPJ group
+        id = upsert_cnpj_group(engine, cnpj_group_playload)
+
+        cnpj_playload = {
+            "group_id": id,
+            "cnpj": cnpj_treated, 
+            "legal_name": results["cnpj_data"]["nome"][i],
+            "brand_name": results["cnpj_data"]["fantasia"][i],
+            "uf": results["cnpj_data"]["uf"][i],
+            "sefaz_register_status": results["cnpj_data"]["situação"][i]
+        }
+        print(f"Upserted CNPJ Group ID: {id} for CNPJ Root: {cnpj_raiz}")
+        # Insert or update CNPJ data
+        upsert_cnpj(engine, cnpj_playload)
+         
+    return results
