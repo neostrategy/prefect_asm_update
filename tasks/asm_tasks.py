@@ -1,0 +1,115 @@
+from tools.api.laucher import DataApiManager
+from prefect_aws import AwsCredentials, S3Bucket
+from prefect_sqlalchemy import SqlAlchemyConnector
+from prefect import task
+from datetime import datetime
+from sqlalchemy import text
+from io import BytesIO
+import pandas as pd
+
+@task
+def s3_read(block_name: str, key: str) -> pd.DataFrame:
+    """Flow to read data from S3 bucket using Prefect and AWS credentials."""
+
+    aws_credentials = AwsCredentials.load(block_name)
+    s3_bucket = S3Bucket(
+        bucket_name="canal-azul",
+        aws_credentials=aws_credentials
+    )
+
+    print(f"Reading file from S3: {key}")
+
+    file_bytes = s3_bucket.read_path(path=key)
+    df = pd.read_csv(BytesIO(file_bytes), sep=";")
+    print(df.head())
+    return df
+
+@task
+def enrich_raw_metadata(df: pd.DataFrame, file_name: str) -> pd.DataFrame:
+    """Enrich the DataFrame with additional metadata."""
+    df['file_name'] = file_name
+    # Adding load date YYYY-MM-DD
+    df['load_ts'] = datetime.now().strftime("%Y-%m-%d")
+    df = df.rename(columns={'Samsung_ModelCode':"PN"})
+    return df
+
+@task
+def load_raw_mysql(df: pd.DataFrame, table_name: str):
+    """Load the DataFrame into a MySQL database."""
+    print(df.head())
+    connector = SqlAlchemyConnector.load("mysql-credentials-local")
+    with connector.get_connection(begin=False) as engine:
+        df.to_sql(
+             name=table_name, 
+             con=engine, 
+             if_exists='append', 
+             index=False
+        )
+    print(f"Data loaded into table {table_name}.")
+
+@task
+def missing_cnpj_check():
+    """Placeholder for missing CNPJ check task."""
+    connector = SqlAlchemyConnector.load("mysql-credentials-local")
+    query = text("""
+    SELECT DISTINCT
+        s.cnpj_revenda
+    FROM database_samsung.slv_sellout_asm s
+    LEFT JOIN bd_samsung_one.d_cnpj d
+        ON s.cnpj_revenda COLLATE utf8mb4_unicode_ci
+         = d.cnpj COLLATE utf8mb4_unicode_ci
+    WHERE d.cnpj IS NULL
+      AND s.cnpj_revenda IS NOT NULL
+    """)
+
+    with connector.get_connection(begin=False) as engine:
+        result = engine.execute(query)
+        missing_cnpjs = [row[0] for row in result]
+    print("Missing CNPJs:", missing_cnpjs)
+    return missing_cnpjs
+
+@task
+def missing_product_check():
+    """Placeholder for missing product check task."""
+    connector = SqlAlchemyConnector.load("mysql-credentials-local")
+
+    query = text("""
+    SELECT DISTINCT
+        s.PN
+    FROM database_samsung.slv_sellout_asm s
+    LEFT JOIN bd_samsung_one.dproduct d
+        ON s.PN COLLATE utf8mb4_unicode_ci
+         = d.sku COLLATE utf8mb4_unicode_ci
+    WHERE d.sku IS NULL
+      AND s.PN IS NOT NULL
+    """)
+
+    with connector.get_connection(begin=False) as engine:
+        result = engine.execute(query)
+        missing_products = [row[0] for row in result]
+    print("Missing Products:", missing_products)
+
+    return missing_products
+
+@task
+def insert_missing_products(product_list):
+    """Placeholder for inserting missing products into the database."""
+    connector = SqlAlchemyConnector.load("mysql-credentials-local")
+
+    with connector.get_connection(begin=False) as engine:
+        for product in product_list:
+            insert_query = text("""
+            INSERT INTO bd_samsung_one.dproduct (sku)
+            VALUES (:sku)
+            """)
+            engine.execute(insert_query, {"sku": product})
+    print("Inserted missing products into the database.")
+
+@task
+def api_launcher(cnpj_list):
+    #TODO: Document this function and modify to Lambda AWS
+    """Task to launch API calls for a list of CNPJs and process the results."""
+    api_manager = DataApiManager()
+    results = api_manager.api_launcher(cnpj_list)
+    print("API results processed:", results)
+    

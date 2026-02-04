@@ -1,0 +1,15 @@
+name: 'dbt_transformations'
+version: '1.0.0'
+config-version: 2
+
+profile: 'dbt_transformations'
+
+model-paths: ["models"]
+
+models:
+  dbt_transformations:
+    staging:
+      +materialized: view
+
+    silver:
+      +materialized: table

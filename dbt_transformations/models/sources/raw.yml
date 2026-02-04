@@ -1,0 +1,7 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: database_samsung
+    tables:
+      - name: sellout_asm_raw
