@@ -7,7 +7,9 @@ from datetime import datetime
 from sqlalchemy import text
 from io import BytesIO
 import pandas as pd
-from tools.cnpj_services import upsert_cnpj, upsert_cnpj_group
+#TODO: Alterar para a raiz certa src/db_services.py
+from tools.cnpj_services import upsert_cnpj, upsert_cnpj_group, upsert_product
+from src.helpers import gerar_id
 
 @task
 def s3_read(block_name: str, key: str) -> pd.DataFrame:
@@ -106,15 +108,19 @@ def missing_product_check():
 def insert_missing_products(product_list):
     """Placeholder for inserting missing products into the database."""
     connector = SqlAlchemyConnector.load("mysql-credentials-local")
+    engine = connector.get_engine()
 
-    with connector.get_connection(begin=False) as engine:
-        for product in product_list:
-            insert_query = text("""
-            INSERT INTO bd_samsung_one.dproduct (sku)
-            VALUES (:sku)
-            """)
-            engine.execute(insert_query, {"sku": product})
-    print("Inserted missing products into the database.")
+    for product in product_list:
+        model = product[:8]
+        product_playload ={
+            "product_id": gerar_id(product, "PROD"),
+            "sku": product,
+            "model": model
+        }
+        id = upsert_product(engine, product_playload)
+
+        print(f"Upserted Product ID: {id} for SKU: {product}")
+
 
 @task
 #TODO: Alterar esssa função para Lambda AWS e documentar

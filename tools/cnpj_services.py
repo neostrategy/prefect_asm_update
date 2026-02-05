@@ -1,6 +1,6 @@
 from prefect import flow, task
 from sqlalchemy import text
-
+#TODO: Mover para src/db_services.py
 def upsert_cnpj_group(engine, data: dict):
     insert_query = text(
     """
@@ -29,10 +29,23 @@ def upsert_cnpj(engine, data: dict):
         uf = VALUES(uf),
         sefaz_register_status = VALUES(sefaz_register_status),
         creation_date = NOW(),
-        update_date = NOW(),
-        cnpj_id = LAST_INSERT_ID(cnpj_id)
+        update_date = NOW()
     """
     )
     with engine.begin() as conn:
         cursor = conn.execute(insert_query, data)
     return cursor.lastrowid
+
+def upsert_product(engine, data: dict):
+    insert_query = text(
+        """
+        INSERT INTO bd_samsung_one.dproduct(product_id, sku, model)
+        VALUES (:product_id, :sku, :model) 
+        ON DUPLICATE KEY UPDATE
+            sku = :sku
+        """
+    )
+    with engine.begin() as conn:
+        conn.execute(insert_query, data)
+
+    return 
