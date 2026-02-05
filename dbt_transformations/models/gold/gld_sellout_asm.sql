@@ -8,6 +8,12 @@ WITH bloco AS (
         nf_number,
         cnpj_revenda,
         sku,
+        distributor_name,
+        endcustomer_code,
+        week,
+        type,
+        projeto,
+
 
         -- agrega dentro do mesmo bloco (load_ts + file_name)
         load_ts,
@@ -15,7 +21,7 @@ WITH bloco AS (
         MAX(file_name) AS file_name
     FROM {{ ref('slv_sellout_asm') }}
     GROUP BY
-        business_key,  sales_type, sales_date, nf_number, cnpj_revenda, sku, load_ts, file_name
+        business_key,  sales_type, sales_date, nf_number, cnpj_revenda, sku, load_ts, file_name, distributor_name,endcustomer_code, week, type, projeto
 ),
 
 dedup AS (
@@ -29,14 +35,24 @@ dedup AS (
 )
 SELECT
     d.business_key,
-    d.sales_type,
-    d.sales_date,
-    d.nf_number,
-    d.qty,
-    d.cnpj_revenda,
     c.cnpj_id,
+    d.cnpj_revenda,
+    cf.endcustomer_cnpj_id,
+    d.endcustomer_code
+    p.product_id
     d.sku,
-    p.product_id,
+    d.distributor_name,
+
+    
+    d.sales_date,
+    d.qty,
+    d.nf_number,
+    
+    
+    
+    d.sales_type,
+    
+    
     d.load_ts,
     d.file_name
 
@@ -44,6 +60,10 @@ FROM dedup d
 LEFT JOIN {{ source('bd_samsung_one','d_cnpj') }} c
   ON d.cnpj_revenda COLLATE utf8mb4_unicode_ci
    = c.cnpj       COLLATE utf8mb4_unicode_ci
+
+LEFT JOIN {{ source('bd_samsung_one','d_cnpj') }} cf
+  ON d.endcustomer_code COLLATE utf8mb4_unicode_ci
+   = cf.cnpj       COLLATE utf8mb4_unicode_ci
 
 LEFT JOIN {{ source('bd_samsung_one','dproduct') }} p
   ON d.sku COLLATE utf8mb4_unicode_ci
