@@ -1,10 +1,11 @@
-from tasks.asm_tasks import (s3_read,enrich_raw_metadata,load_raw_mysql,missing_cnpj_check,api_launcher, missing_product_check)
+from tasks.asm_tasks import (s3_read,load_raw_mysql,missing_cnpj_check,api_launcher, missing_product_check, insert_missing_products)
 #from prefect_dbt import PrefectDbtRunner, PrefectDbtSettings
 from prefect import flow
 from dotenv import load_dotenv
 from datetime import datetime
 from pathlib import Path
 import subprocess
+import pandas as pd
 
 
 load_dotenv()
@@ -12,15 +13,17 @@ load_dotenv()
 @flow
 def asm_flow(s3_block_name: str, s3_key: str, table_name: str):
     """Main flow to read from S3, enrich data, and load into MySQL."""
-    df = s3_read(block_name=s3_block_name, key=s3_key)
-    load_raw_mysql(df, table_name)
+    # df = s3_read(block_name=s3_block_name, key=s3_key)
+    # load_raw_mysql(df, table_name)
+
 
     #TODO: inserir dbt aqui
 
     # cnpj_list = missing_cnpj_check()
     # api_launcher(cnpj_list)
-    # product_list = missing_product_check()
-    # print(product_list)
+
+    product_list = missing_product_check()
+    insert_missing_products(product_list)
 
 #TODO: Alterar pois não funciona
 #TODO: Preciso reinstalar todas as dependencias

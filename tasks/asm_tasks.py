@@ -117,10 +117,10 @@ def insert_missing_products(product_list):
             "sku": product,
             "model": model
         }
+        
         id = upsert_product(engine, product_playload)
 
         print(f"Upserted Product ID: {id} for SKU: {product}")
-
 
 @task
 #TODO: Alterar esssa função para Lambda AWS e documentar
