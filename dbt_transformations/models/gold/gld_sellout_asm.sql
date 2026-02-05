@@ -59,7 +59,9 @@ SELECT
     d.sales_type,
     
     d.load_ts,
-    d.file_name
+    d.file_name,
+    d.week,
+    d.projeto
 
 FROM dedup d
 LEFT JOIN {{ source('bd_samsung_one','d_cnpj') }} c
