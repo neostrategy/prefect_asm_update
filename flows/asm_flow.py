@@ -13,8 +13,7 @@ load_dotenv()
 def asm_flow(s3_block_name: str, s3_key: str, table_name: str):
     """Main flow to read from S3, enrich data, and load into MySQL."""
     df = s3_read(block_name=s3_block_name, key=s3_key)
-    #df_enriched = enrich_raw_metadata(df, Path(s3_key).name)
-    #load_raw_mysql(df_enriched, table_name)
+    load_raw_mysql(df, table_name)
 
     #TODO: inserir dbt aqui
 
@@ -40,7 +39,7 @@ def run_dbt():
 if __name__ == "__main__":
     asm_flow(
         s3_block_name="aws-credentials-local",
-        s3_key="ASM/ASM-2025.csv",
+        s3_key="ASM",
         table_name="sellout_asm_raw"
     )
  

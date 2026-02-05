@@ -19,21 +19,20 @@ def s3_read(block_name: str, key: str) -> pd.DataFrame:
         aws_credentials=aws_credentials
     )
 
-    print(f"Reading file from S3: {key}")
+    df_complete = pd.DataFrame()
+    s3_objects = s3_bucket.list_objects(folder=key)
+    files_paths = [d['Key'] for d in s3_objects if d['Key'].endswith(".csv")]
 
-    file_bytes = s3_bucket.read_path(path=key)
-    df = pd.read_csv(BytesIO(file_bytes), sep=";")
-    print(df.head())
-    return df
-
-@task
-def enrich_raw_metadata(df: pd.DataFrame, file_name: str) -> pd.DataFrame:
-    """Enrich the DataFrame with additional metadata."""
-    df['file_name'] = file_name
-    # Adding load date YYYY-MM-DD
-    df['load_ts'] = datetime.now().strftime("%Y-%m-%d")
-    df = df.rename(columns={'Samsung_ModelCode':"PN"})
-    return df
+    for file_path in files_paths:
+        print(f"Reading file from S3: {file_path}")
+        file_bytes = s3_bucket.read_path(path=file_path)
+        df = pd.read_csv(BytesIO(file_bytes), sep=";")
+        df['file_name'] = file_path
+        # Adding load date YYYY-MM-DD
+        df['load_ts'] = datetime.now().strftime("%Y-%m-%d")
+        df_complete = pd.concat([df_complete, df.reset_index(drop=True)])
+        
+    return df_complete
 
 @task
 def load_raw_mysql(df: pd.DataFrame, table_name: str):
