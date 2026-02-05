@@ -37,7 +37,6 @@ def s3_read(block_name: str, key: str) -> pd.DataFrame:
 @task
 def load_raw_mysql(df: pd.DataFrame, table_name: str):
     """Load the DataFrame into a MySQL database."""
-    print(df.head())
     connector = SqlAlchemyConnector.load("mysql-credentials-local")
     with connector.get_connection(begin=False) as engine:
         df.to_sql(
@@ -53,16 +52,27 @@ def missing_cnpj_check():
     """Placeholder for missing CNPJ check task."""
     connector = SqlAlchemyConnector.load("mysql-credentials-local")
     query = text("""
-    SELECT DISTINCT
-        s.cnpj_revenda
-    FROM database_samsung.slv_sellout_asm s
-    LEFT JOIN bd_samsung_one.d_cnpj d
-        ON s.cnpj_revenda COLLATE utf8mb4_unicode_ci
-         = d.cnpj COLLATE utf8mb4_unicode_ci
-    WHERE d.cnpj IS NULL
-      AND s.cnpj_revenda IS NOT NULL
-    """)
+    WITH cnpjs AS (
+        SELECT DISTINCT
+            s.cnpj_revenda AS cnpj
+        FROM database_samsung.slv_sellout_asm s
+        WHERE s.cnpj_revenda IS NOT NULL
 
+        UNION
+
+        SELECT DISTINCT
+            s.endcustomer_code AS cnpj
+        FROM database_samsung.slv_sellout_asm s
+        WHERE s.endcustomer_code IS NOT NULL
+    )
+    SELECT
+        c.cnpj
+    FROM cnpjs c
+    LEFT JOIN bd_samsung_one.d_cnpj d
+        ON c.cnpj COLLATE utf8mb4_unicode_ci
+        = d.cnpj COLLATE utf8mb4_unicode_ci
+    WHERE d.cnpj IS NULL
+    """)
     with connector.get_connection(begin=False) as engine:
         result = engine.execute(query)
         missing_cnpjs = [row[0] for row in result]
@@ -76,13 +86,13 @@ def missing_product_check():
 
     query = text("""
     SELECT DISTINCT
-        s.PN
+        s.sku
     FROM database_samsung.slv_sellout_asm s
     LEFT JOIN bd_samsung_one.dproduct d
-        ON s.PN COLLATE utf8mb4_unicode_ci
+        ON s.sku COLLATE utf8mb4_unicode_ci
          = d.sku COLLATE utf8mb4_unicode_ci
     WHERE d.sku IS NULL
-      AND s.PN IS NOT NULL
+      AND s.sku IS NOT NULL
     """)
 
     with connector.get_connection(begin=False) as engine:
